@@ -80,6 +80,8 @@ model Tenant {
   forms             Form[]
   workflowTemplates WorkflowTemplate[]
   formTemplates     FormTemplate[]
+  notifications     Notification[]
+  files             File[]
 }
 
 model User {
@@ -110,8 +112,13 @@ model User {
 
   workflowApprovals WorkflowApproval[]
 
-  student            Student?
-  facultyDepartments FacultyDepartment[]
+  student                Student?
+  facultyDepartments     FacultyDepartment[]
+  notificationRecipients NotificationRecipient[]
+  files                  File[]
+
+  @@index([email])
+  @@index([tenantId])
 }
 
 model Role {
@@ -127,7 +134,8 @@ model Role {
 
   permissions RolePermission[]
 
-  users UserRole[]
+  users         UserRole[]
+  workflowSteps WorkflowStep[]
 }
 
 model Permission {
@@ -194,6 +202,7 @@ model Student {
 
   @@index([enrollmentNumber])
   @@index([classroomId])
+  @@index([tenantId])
 }
 
 model Form {
@@ -230,6 +239,7 @@ model Form {
   assignments FormAssignment[]
 
   @@index([tenantId])
+  @@index([createdById])
 }
 
 model FormField {
@@ -316,6 +326,7 @@ model Submission {
 
   @@index([studentId])
   @@index([verificationId])
+  @@index([status])
 }
 
 model SubmissionAnswer {
@@ -370,6 +381,8 @@ model WorkflowStep {
 
   roleId String
 
+  role Role @relation(fields: [roleId], references: [id])
+
   stepOrder Int
 
   createdAt DateTime @default(now())
@@ -415,20 +428,45 @@ model OTPVerification {
 
   verified Boolean @default(false)
 
+  attempts Int @default(0)
+
   createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model Notification {
   id String @id @default(uuid())
 
-  userId String
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   title   String
   message String
 
-  isRead Boolean @default(false)
+  type NotificationType @default(INFO)
 
   createdAt DateTime @default(now())
+
+  recipients NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id String @id @default(uuid())
+
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  isRead Boolean @default(false)
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([notificationId, userId])
 }
 
 model ActivityLog {
@@ -439,19 +477,42 @@ model ActivityLog {
 
   action String
 
+  entityType String?
+  entityId   String?
+
   ipAddress String?
 
+  userAgent String?
+
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model File {
   id String @id @default(uuid())
 
-  url String
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  fileName String
+
+  originalName String
 
   fileType String
 
-  uploadedAt DateTime @default(now())
+  mimeType String
+
+  size Int
+
+  url String
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([fileType])
 }
 
 model AcademicYear {
