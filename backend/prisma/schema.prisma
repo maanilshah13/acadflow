@@ -7,58 +7,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Tenant {
-  id     String  @id @default(uuid())
-  name   String
-  slug   String  @unique
-  domain String? @unique
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users    User[]
-  students Student[]
-  forms    Form[]
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
-model User {
-  id       String @id @default(uuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
 
-  name  String
-  email String @unique
-  phone String @unique
+enum SignatureType {
+  DRAWN
+  UPLOAD
+  DIGITAL
+}
 
-  password String
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  PHONE
+  NUMBER
+  DATE
+  SELECT
+  RADIO
+  CHECKBOX
+  FILE
+  SIGNATURE
+}
+
+enum WorkflowAction {
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+model Tenant {
+  id String @id @default(uuid())
+
+  name String
+  code String @unique
+  slug String @unique
+
+  domain String?
+
+  logoUrl String?
+  sealUrl String?
+
+  primaryColor   String?
+  secondaryColor String?
 
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles        UserRole[]
+  colleges College[]
+  users    User[]
+  students Student[]
+  forms    Form[]
+}
+
+model User {
+  id String @id @default(uuid())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  name String
+
+  email String @unique
+  phone String @unique
+
+  password String
+
+  status UserStatus @default(ACTIVE)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles UserRole[]
+
   formsCreated Form[]
 
   activityLogs ActivityLog[]
 
   workflowApprovals WorkflowApproval[]
+
+  student            Student?
+  facultyDepartments FacultyDepartment[]
 }
 
 model Role {
-  id          String  @id @default(uuid())
-  name        String  @unique
+  id String @id @default(uuid())
+
+  tenantId String?
+
+  name String
+
   description String?
 
   createdAt DateTime @default(now())
 
   permissions RolePermission[]
-  users       UserRole[]
+
+  users UserRole[]
 }
 
 model Permission {
-  id          String  @id @default(uuid())
-  name        String  @unique
+  id String @id @default(uuid())
+
+  name String @unique
+
   description String?
 
   createdAt DateTime @default(now())
@@ -96,17 +170,16 @@ model Student {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
   enrollmentNumber String @unique
 
-  name  String
-  email String @unique
-  phone String @unique
+  admissionYear  Int
+  graduationYear Int
 
-  department String
-  branch     String
-  semester   Int
-  section    String?
-  division   String?
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
 
   isActive Boolean @default(true)
 
@@ -114,6 +187,11 @@ model Student {
   updatedAt DateTime @updatedAt
 
   submissions Submission[]
+
+  classroomHistory StudentClassroomHistory[]
+
+  @@index([enrollmentNumber])
+  @@index([classroomId])
 }
 
 model Form {
@@ -260,4 +338,121 @@ model File {
   fileType String
 
   uploadedAt DateTime @default(now())
+}
+
+model AcademicYear {
+  id String @id @default(uuid())
+
+  name String
+
+  startDate DateTime
+  endDate   DateTime
+
+  isCurrent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model College {
+  id String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name String
+  code String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  departments Department[]
+}
+
+model Department {
+  id String @id @default(uuid())
+
+  collegeId String
+  college   College @relation(fields: [collegeId], references: [id])
+
+  name String
+  code String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches Branch[]
+
+  facultyDepartments FacultyDepartment[]
+}
+
+model Branch {
+  id String @id @default(uuid())
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  name String
+  code String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classrooms Classroom[]
+}
+
+model Classroom {
+  id String @id @default(uuid())
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  name String
+
+  semester Int
+
+  section  String?
+  division String?
+
+  capacity Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students Student[]
+
+  ///formAssignments FormAssignment[]
+
+  studentHistory StudentClassroomHistory[]
+}
+
+model FacultyDepartment {
+  id String @id @default(uuid())
+
+  userId       String
+  departmentId String
+
+  user User @relation(fields: [userId], references: [id])
+
+  department Department @relation(fields: [departmentId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, departmentId])
+}
+
+model StudentClassroomHistory {
+  id String @id @default(uuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+
+  promotedAt DateTime @default(now())
+
+  remarks String?
+
+  createdAt DateTime @default(now())
 }
