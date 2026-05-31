@@ -126,7 +126,7 @@ model Role {
 
   tenantId String?
 
-  name String
+  name String @unique
 
   description String?
 
