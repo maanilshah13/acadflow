@@ -74,10 +74,11 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  colleges College[]
-  users    User[]
-  students Student[]
-  forms    Form[]
+  colleges      College[]
+  users         User[]
+  students      Student[]
+  forms         Form[]
+  formTemplates FormTemplate[]
 }
 
 model User {
@@ -200,7 +201,11 @@ model Form {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  title       String
+  templateId String?
+  template   FormTemplate? @relation(fields: [templateId], references: [id])
+
+  title String
+
   description String?
 
   createdById String
@@ -208,11 +213,22 @@ model Form {
 
   isPublished Boolean @default(false)
 
+  allowSignature Boolean @default(true)
+
+  requireEmailOTP Boolean @default(true)
+
+  requirePhoneOTP Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  fields      FormField[]
+  fields FormField[]
+
   submissions Submission[]
+
+  assignments FormAssignment[]
+
+  @@index([tenantId])
 }
 
 model FormField {
@@ -222,17 +238,50 @@ model FormField {
   form   Form   @relation(fields: [formId], references: [id])
 
   label String
-  type  String
+
+  type FormFieldType
 
   required Boolean @default(false)
 
   placeholder String?
 
-  options Json?
+  helpText String?
+
+  defaultValue String?
 
   order Int
 
   createdAt DateTime @default(now())
+
+  options FieldOption[]
+}
+
+model FieldOption {
+  id String @id @default(uuid())
+
+  fieldId String
+  field   FormField @relation(fields: [fieldId], references: [id])
+
+  label String
+
+  value String
+}
+
+model FormAssignment {
+  id String @id @default(uuid())
+
+  formId String
+  form   Form   @relation(fields: [formId], references: [id])
+
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+
+  assignedAt DateTime @default(now())
+
+  isActive Boolean @default(true)
+
+  @@unique([formId, classroomId])
+  @@index([classroomId])
 }
 
 model Submission {
@@ -423,7 +472,8 @@ model Classroom {
 
   ///formAssignments FormAssignment[]
 
-  studentHistory StudentClassroomHistory[]
+  studentHistory  StudentClassroomHistory[]
+  formAssignments FormAssignment[]
 }
 
 model FacultyDepartment {
@@ -455,4 +505,22 @@ model StudentClassroomHistory {
   remarks String?
 
   createdAt DateTime @default(now())
+}
+
+model FormTemplate {
+  id String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name String
+
+  description String?
+
+  isSystemTemplate Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  forms Form[]
 }
