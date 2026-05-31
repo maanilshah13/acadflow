@@ -74,11 +74,12 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  colleges      College[]
-  users         User[]
-  students      Student[]
-  forms         Form[]
-  formTemplates FormTemplate[]
+  colleges          College[]
+  users             User[]
+  students          Student[]
+  forms             Form[]
+  workflowTemplates WorkflowTemplate[]
+  formTemplates     FormTemplate[]
 }
 
 model User {
@@ -293,14 +294,28 @@ model Submission {
   studentId String
   student   Student @relation(fields: [studentId], references: [id])
 
-  status String @default("PENDING")
+  status SubmissionStatus @default(DRAFT)
 
   verificationId String @unique
 
-  submittedAt DateTime @default(now())
+  qrCodeUrl String?
 
-  answers   SubmissionAnswer[]
+  submittedAt DateTime?
+  approvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers SubmissionAnswer[]
+
   approvals WorkflowApproval[]
+
+  signature Signature?
+
+  documentVerification DocumentVerification?
+
+  @@index([studentId])
+  @@index([verificationId])
 }
 
 model SubmissionAnswer {
@@ -310,17 +325,54 @@ model SubmissionAnswer {
   submission   Submission @relation(fields: [submissionId], references: [id])
 
   fieldId String
-  value   String
+
+  value Json
+
+  createdAt DateTime @default(now())
+}
+
+model Signature {
+  id String @id @default(uuid())
+
+  submissionId String @unique
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  type SignatureType
+
+  signatureUrl String
+
+  createdAt DateTime @default(now())
+}
+
+model DocumentVerification {
+  id String @id @default(uuid())
+
+  submissionId String @unique
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  verificationId String @unique
+
+  qrCodeUrl String
+
+  verifiedCount Int @default(0)
+
+  createdAt DateTime @default(now())
 }
 
 model WorkflowStep {
   id String @id @default(uuid())
 
-  formId String
+  workflowTemplateId String
 
-  role String
+  workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id])
+
+  roleId String
 
   stepOrder Int
+
+  createdAt DateTime @default(now())
 }
 
 model WorkflowApproval {
@@ -332,11 +384,24 @@ model WorkflowApproval {
   approvedById String
   approvedBy   User   @relation(fields: [approvedById], references: [id])
 
-  status String
+  action WorkflowAction
 
   comments String?
 
-  approvedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model WorkflowTemplate {
+  id String @id @default(uuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name String
+
+  createdAt DateTime @default(now())
+
+  steps WorkflowStep[]
 }
 
 model OTPVerification {
