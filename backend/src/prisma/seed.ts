@@ -18,16 +18,62 @@ async function main() {
     code: "UFLOW"
   }
 });
+const permissions = [
+  "MANAGE_UNIVERSITIES",
+  "MANAGE_COLLEGES",
+  "MANAGE_DEPARTMENTS",
+  "MANAGE_CLASSROOMS",
+  "MANAGE_STUDENTS",
+  "CREATE_FORM",
+  "EDIT_FORM",
+  "DELETE_FORM",
+  "VIEW_FORM",
+  "SUBMIT_FORM",
+  "APPROVE_FORM",
+  "EXPORT_DATA",
+  "VIEW_ANALYTICS"
+];
 
-  const role = await prisma.role.upsert({
+for (const permission of permissions) {
+  await prisma.permission.upsert({
     where: {
-      name: "SUPER_ADMIN"
+      name: permission
     },
     update: {},
     create: {
-      name: "SUPER_ADMIN"
+      name: permission
     }
   });
+}
+const superAdminRole = await prisma.role.upsert({
+  where: {
+    name: "SUPER_ADMIN"
+  },
+  update: {},
+  create: {
+    name: "SUPER_ADMIN",
+    description: "Platform Super Administrator"
+  }
+});
+
+const allPermissions =
+  await prisma.permission.findMany();
+
+for (const permission of allPermissions) {
+  await prisma.rolePermission.upsert({
+    where: {
+      roleId_permissionId: {
+        roleId: superAdminRole.id,
+        permissionId: permission.id
+      }
+    },
+    update: {},
+    create: {
+      roleId: superAdminRole.id,
+      permissionId: permission.id
+    }
+  });
+}
 
   const user = await prisma.user.upsert({
     where: {
@@ -38,7 +84,7 @@ async function main() {
       tenantId: tenant.id,
       name: "Super Admin",
       email: "admin@uniflow.com",
-      phone: "9999999999",
+      phone: "8888888888",
       password
     }
   });
@@ -47,13 +93,13 @@ async function main() {
     where: {
       userId_roleId: {
         userId: user.id,
-        roleId: role.id
+        roleId: superAdminRole.id
       }
     },
     update: {},
     create: {
       userId: user.id,
-      roleId: role.id
+      roleId: superAdminRole.id
     }
   });
 
